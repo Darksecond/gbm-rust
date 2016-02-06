@@ -1,0 +1,6 @@
+[package]
+name = "gbm-rust"
+version = "0.1.0"
+authors = ["Tim Peters <tim@wirelab.nl>"]
+
+[dependencies]
