@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate bitflags;
+
 mod cartridge;
 mod mmu;
 mod cpu;
@@ -24,4 +27,5 @@ fn main() {
     cpu.step(); // JP
     cpu.step(); // JP
     cpu.step(); // XOR A
+    cpu.step();
 }
