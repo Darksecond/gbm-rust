@@ -1,4 +1,3 @@
-
 pub struct Cartridge {
     rom: Vec<u8>
 }
