@@ -20,7 +20,9 @@ impl Flags {
 pub struct Registers {
     pub a: u8,
     pub pc: u16,
-    pub f: Flags
+    pub f: Flags,
+    pub h: u8,
+    pub l: u8,
 }
 
 pub enum Reg8 {
@@ -28,5 +30,18 @@ pub enum Reg8 {
 }
 
 pub enum Reg16 {
-    PC
+    PC,
+    HL
+}
+
+impl Registers {
+    pub fn new() -> Registers {
+        Registers {
+            a: 0x01,
+            pc: 0x0100,
+            f: Flags::empty(),
+            h: 0x01,
+            l: 0x4d,
+        }
+    }
 }
