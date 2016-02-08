@@ -22,10 +22,14 @@ fn main() {
     println!("{}", mmu.read(0xC000));
 
     // CPU
-    let mut cpu = CPU::new(&mmu);
+    let mut cpu = CPU::new(&mut mmu);
     cpu.step(); // NOP
     cpu.step(); // JP
     cpu.step(); // JP
     cpu.step(); // XOR A
+    cpu.step(); // LD HL, nn
+    cpu.step(); // LD C, n
+    cpu.step(); // LD B, n
+    cpu.step(); // LDD (HL), A
     cpu.step();
 }
