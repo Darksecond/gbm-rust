@@ -1,6 +1,6 @@
 mod registers;
 
-use mmu::MMU;
+use mmu::{MMU, Bus};
 use cpu::registers::{Registers, Reg8, Reg16, Flags};
 
 trait DecInc {

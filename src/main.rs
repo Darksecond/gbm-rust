@@ -2,6 +2,7 @@
 extern crate bitflags;
 
 mod cartridge;
+mod memory;
 mod mmu;
 mod cpu;
 

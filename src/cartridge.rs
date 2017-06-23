@@ -1,3 +1,5 @@
+use mmu::Bus;
+
 pub struct Cartridge {
     rom: Vec<u8>
 }
@@ -16,13 +18,19 @@ impl Cartridge {
         })
     }
 
-    pub fn read(&self, addr: u16) -> u8 {
-        self.rom[addr as usize]
-    }
-
     pub fn title(&self) -> String {
         use std::str;
         let slice = &self.rom[0x134 .. 0x143];
         str::from_utf8(slice).map_err(|_| { "".to_string() }).unwrap().trim_right_matches('\0').to_string()
+    }
+}
+
+impl Bus for Cartridge {
+    fn read(&self, addr: u16) -> u8 {
+        self.rom[addr as usize]
+    }
+
+    fn write(&mut self, addr: u16, value: u8) {
+        panic!("Write not supported");
     }
 }
