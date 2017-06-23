@@ -17,10 +17,6 @@ fn main() {
     let mut mmu = MMU::new(&cart);
     println!("{}", cart.title());
 
-    // MMU test
-    mmu.write(0xC000, 123);
-    println!("{}", mmu.read(0xC000));
-
     // CPU
     let mut cpu = CPU::new(&mut mmu);
     cpu.step(); // NOP
@@ -31,5 +27,6 @@ fn main() {
     cpu.step(); // LD C, n
     cpu.step(); // LD B, n
     cpu.step(); // LDD (HL), A
+    cpu.step(); // SUB B
     cpu.step();
 }
