@@ -22,18 +22,23 @@ pub struct Registers {
     pub a: u8,
     pub b: u8,
     pub c: u8,
+    pub d: u8,
     pub pc: u16,
     pub f: Flags,
     pub h: u8,
     pub l: u8,
 }
 
+#[derive(Debug)]
 pub enum Reg8 {
     A,
     B,
-    C
+    C,
+    D,
+    H,
 }
 
+#[derive(Debug)]
 pub enum Reg16 {
     PC,
     HL
@@ -45,6 +50,7 @@ impl Registers {
             a: 0x01,
             b: 0x00,
             c: 0x13,
+            d: 0x00,
             pc: 0x0100,
             f: Flags::empty(),
             h: 0x01,
