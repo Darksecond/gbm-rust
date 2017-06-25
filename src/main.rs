@@ -11,7 +11,6 @@ use mmu::MMU;
 use cpu::CPU;
 
 //TODO Investigate minifb
-//TODO Implement cycles into CPU
 fn main() {
     use std::env;
     let filename = env::args().nth(1).expect("Missing argument");
