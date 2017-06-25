@@ -30,7 +30,7 @@ impl Bus for Cartridge {
         self.rom[addr as usize]
     }
 
-    fn write(&mut self, addr: u16, value: u8) {
+    fn write(&mut self, _: u16, _: u8) {
         panic!("Write not supported");
     }
 }

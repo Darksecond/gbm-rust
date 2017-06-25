@@ -40,7 +40,10 @@ impl In16 for Reg16 {
         use cpu::registers::Reg16::*;
         match *self {
             HL => ((cpu.regs.h as u16) << 8) | (cpu.regs.l as u16),
-            PC => cpu.regs.pc
+            BC => ((cpu.regs.b as u16) << 8) | (cpu.regs.c as u16),
+            DE => ((cpu.regs.d as u16) << 8) | (cpu.regs.e as u16),
+            PC => cpu.regs.pc,
+            SP => cpu.regs.sp,
         }
     }
 }
@@ -53,7 +56,16 @@ impl Out16 for Reg16 {
                 cpu.regs.h = (value >> 8) as u8;
                 cpu.regs.l = value as u8;
             },
-            PC => cpu.regs.pc = value
+            BC => {
+                cpu.regs.b = (value >> 8) as u8;
+                cpu.regs.c = value as u8;
+            },
+            DE => {
+                cpu.regs.d = (value >> 8) as u8;
+                cpu.regs.e = value as u8;
+            },
+            PC => cpu.regs.pc = value,
+            SP => cpu.regs.sp = value,
         }
     }
 }
@@ -90,6 +102,7 @@ impl In8 for Reg8 {
             B => cpu.regs.b,
             C => cpu.regs.c,
             D => cpu.regs.d,
+            E => cpu.regs.e,
             H => cpu.regs.h,
         }
     }
@@ -103,6 +116,7 @@ impl Out8 for Reg8 {
             B => cpu.regs.b = value,
             C => cpu.regs.c = value,
             D => cpu.regs.d = value,
+            E => cpu.regs.e = value,
             H => cpu.regs.h = value,
         }
     }
@@ -148,11 +162,11 @@ impl<'a> CPU<'a> {
     }
 
     pub fn step(&mut self) {
-        let opcode = Opcode::decode(self);
+        let (opcode, instruction) = Opcode::decode(self);
         println!("Regs   : {:?}", self.regs);
         println!("PC     : 0x{0:04x}", self.regs.pc-1);
-        println!("Opcode : {:?} (0x{:x})", opcode, opcode.opcode());
-        self.decode(opcode);
+        println!("Opcode : {:?} (0x{:x})", instruction, opcode);
+        self.decode(instruction);
     }
 
     pub fn next_u8(&mut self) -> u8 {
@@ -187,6 +201,7 @@ impl In16 for Op16 {
         match *self {
             Op16::Register(ref r) => r.read(cpu),
             Op16::Immediate(value) => value,
+            _ => panic!("Not yet implemented (Op16+In16) ({:?})", self),
         }
     }
 }
@@ -195,7 +210,8 @@ impl Out16 for Op16 {
     fn write(&self, cpu: &mut CPU, value: u16) {
         match *self {
             Op16::Register(ref r) => r.write(cpu, value),
-            Op16::Immediate(value) => panic!("You cannot write to an immediate"),
+            Op16::Immediate(_) => panic!("You cannot write to an immediate"),
+            _ => panic!("Not yet implemented (Op16+Out16) ({:?})", self),
         }
     }
 }
@@ -214,7 +230,7 @@ impl Out8 for Op8 {
     fn write(&self, cpu: &mut CPU, value: u8) {
         match *self {
             Op8::Register(ref r) => r.write(cpu, value),
-            Op8::Immediate(value) => panic!("You cannot write to an immediate"),
+            Op8::Immediate(_) => panic!("You cannot write to an immediate"),
             Op8::Memory(Addr::HLD) => {Memory::HL.write(cpu, value); Reg16::HL.dec(cpu); },
             Op8::Memory(Addr::HLI) => {Memory::HL.write(cpu, value); Reg16::HL.inc(cpu); },
             _ => panic!("Not yet implemented (Op8+Out8) ({:?})", self),
@@ -242,27 +258,27 @@ impl<'a> CPU<'a> {
     }
 
     fn jr(&mut self, cond: Cond, addr: u8) {
-        let doJump = match cond {
+        let do_jump = match cond {
             Cond::NZ => (self.regs.f & registers::Z) == Flags::empty(),
             Cond::NC => (self.regs.f & registers::C) == Flags::empty(),
             Cond::C => (self.regs.f & registers::C) != Flags::empty(),
             Cond::Z => (self.regs.f & registers::Z) != Flags::empty(),
             Cond::Always => true,
         };
-        if doJump {
+        if do_jump {
             self.regs.pc += addr as u16;
         }
     }
 
     fn jp<I: In16>(&mut self, cond: Cond, addr: I) {
-        let doJump = match cond {
+        let do_jump = match cond {
             Cond::NZ => (self.regs.f & registers::Z) == Flags::empty(),
             Cond::NC => (self.regs.f & registers::C) == Flags::empty(),
             Cond::C => (self.regs.f & registers::C) != Flags::empty(),
             Cond::Z => (self.regs.f & registers::Z) != Flags::empty(),
             Cond::Always => true,
         };
-        if doJump {
+        if do_jump {
             self.regs.pc = addr.read(self);
         }
     }
