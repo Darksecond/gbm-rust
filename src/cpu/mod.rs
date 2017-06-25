@@ -104,6 +104,7 @@ impl In8 for Reg8 {
             D => cpu.regs.d,
             E => cpu.regs.e,
             H => cpu.regs.h,
+            L => cpu.regs.l,
         }
     }
 }
@@ -118,6 +119,7 @@ impl Out8 for Reg8 {
             D => cpu.regs.d = value,
             E => cpu.regs.e = value,
             H => cpu.regs.h = value,
+            L => cpu.regs.l = value,
         }
     }
 }

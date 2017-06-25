@@ -39,6 +39,7 @@ pub enum Reg8 {
     D,
     E,
     H,
+    L,
 }
 
 #[derive(Debug)]
