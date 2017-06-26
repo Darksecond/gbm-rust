@@ -290,7 +290,7 @@ impl<'a> CPU<'a> {
 
     fn jr(&mut self, cond: Cond, addr: u8) {
         if cond.check(self.regs.f) {
-            self.regs.pc += addr as u16;
+            self.regs.pc = self.regs.pc.wrapping_add((addr as i8) as u16);
         }
     }
 

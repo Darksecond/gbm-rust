@@ -61,7 +61,7 @@ impl Registers {
             e: 0xd8,
             pc: 0x0100,
             sp: 0xfffe,
-            f: Flags::empty(),
+            f: Z|H|C,
             h: 0x01,
             l: 0x4d,
         }
