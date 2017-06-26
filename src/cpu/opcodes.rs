@@ -14,6 +14,7 @@ pub enum Op8 {
 pub enum Addr {
     HL, HLD, HLI,
     BC, DE,
+    ZeroPage(u8),
     Immediate(u16),
 }
 
@@ -60,10 +61,11 @@ pub enum Opcode {
     Push(Op16),
     Call(Cond, Op16),
     Rst(u8),
+    Di,
+    Ei,
 }
 
 impl Opcode {
-    //TODO Implement cylces
     pub fn decode(cpu: &mut CPU) -> (u8, Opcode) {
         let opcode = cpu.next_u8();
         let instruction = match opcode {
@@ -288,6 +290,12 @@ impl Opcode {
             0xCD => Opcode::Call(Cond::Always, Op16::Immediate(cpu.next_u16())),
             0xCE => Opcode::Adc(Op8::Register(Reg8::A), Op8::Immediate(cpu.next_u8())),
             0xCF => Opcode::Rst(0x08),
+
+            0xE0 => Opcode::Ld(Op8::Memory(Addr::ZeroPage(cpu.next_u8())), Op8::Register(Reg8::A)),
+
+            0xF2 => Opcode::Pop(Op16::Register(Reg16::AF)),
+            0xF3 => Opcode::Di,
+            0xF8 => Opcode::Ei,
 
             _ => Opcode::Unknown(opcode),
         };

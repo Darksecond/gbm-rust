@@ -52,6 +52,7 @@ impl In16 for Reg16 {
         use cpu::registers::Reg16::*;
         match *self {
             HL => ((cpu.regs.h as u16) << 8) | (cpu.regs.l as u16),
+            AF => ((cpu.regs.a as u16) << 8) | (cpu.regs.f.bits() as u16),
             BC => ((cpu.regs.b as u16) << 8) | (cpu.regs.c as u16),
             DE => ((cpu.regs.d as u16) << 8) | (cpu.regs.e as u16),
             PC => cpu.regs.pc,
@@ -67,6 +68,10 @@ impl Out16 for Reg16 {
             HL => {
                 cpu.regs.h = (value >> 8) as u8;
                 cpu.regs.l = value as u8;
+            },
+            AF => {
+                cpu.regs.a = (value >> 8) as u8;
+                cpu.regs.f = Flags::from_bits_truncate(value as u8);
             },
             BC => {
                 cpu.regs.b = (value >> 8) as u8;
@@ -162,8 +167,15 @@ impl Out8 for Memory {
     }
 }
 
+enum Ime {
+    Disabled,
+    Enabled,
+    Enabling,
+}
+
 pub struct CPU<'a> {
     regs: Registers,
+    ime: Ime,
     mmu: &'a mut MMU<'a>
 }
 
@@ -171,6 +183,7 @@ impl<'a> CPU<'a> {
     pub fn new(mmu: &'a mut MMU<'a>) -> CPU<'a> {
         CPU {
             regs: Registers::new(),
+            ime: Ime::Disabled,
             mmu: mmu
         }
     }
@@ -209,6 +222,7 @@ impl<'a> CPU<'a> {
             Opcode::Inc(reg) => self.inc8(reg),
             Opcode::Adc(to, from) => self.adc(from, to),
             Opcode::Rra => self.rra(),
+            Opcode::Di => self.ime = Ime::Disabled,
             _ => panic!("Unknown opcode ({:?})", opcode),
         }
     }
@@ -251,6 +265,7 @@ impl Out8 for Op8 {
             Op8::Immediate(_) => panic!("You cannot write to an immediate"),
             Op8::Memory(Addr::HLD) => {Memory::HL.write(cpu, value); Reg16::HL.dec(cpu); },
             Op8::Memory(Addr::HLI) => {Memory::HL.write(cpu, value); Reg16::HL.inc(cpu); },
+            Op8::Memory(Addr::ZeroPage(addr)) => {cpu.mmu.write(0xFF01|(addr as u16), value);},
             _ => panic!("Not yet implemented (Op8+Out8) ({:?})", self),
         }
     }
