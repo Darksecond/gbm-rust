@@ -204,6 +204,7 @@ impl<'a> CPU<'a> {
             Opcode::Ld16(to, from) => self.load16(from, to),
             Opcode::Ld(to, from) => self.load8(from, to),
             Opcode::Dec(Op8::Register(reg)) => self.dec8(reg),
+            Opcode::Inc(reg) => self.inc8(reg),
             Opcode::Adc(to, from) => self.adc(from, to),
             Opcode::Rra => self.rra(),
             _ => panic!("Unknown opcode ({:?})", opcode),
@@ -249,6 +250,21 @@ impl Out8 for Op8 {
             Op8::Memory(Addr::HLD) => {Memory::HL.write(cpu, value); Reg16::HL.dec(cpu); },
             Op8::Memory(Addr::HLI) => {Memory::HL.write(cpu, value); Reg16::HL.inc(cpu); },
             _ => panic!("Not yet implemented (Op8+Out8) ({:?})", self),
+        }
+    }
+}
+
+impl DecInc for Op8 {
+    fn dec(&mut self, cpu: &mut CPU) {
+        match *self {
+            Op8::Register(ref mut r) => r.dec(cpu),
+            _ => panic!("Not yet implemented (Op8+DecInc+dec) ({:?})", self),
+        }
+    }
+    fn inc(&mut self, cpu: &mut CPU) {
+        match *self {
+            Op8::Register(ref mut r) => r.inc(cpu),
+            _ => panic!("Not yet implemented (Op8+DecInc+inc) ({:?})", self),
         }
     }
 }
@@ -302,6 +318,15 @@ impl<'a> CPU<'a> {
         self.regs.f =
             registers::Z.test(value == 0) | // Z
             registers::N | // 1
+            registers::H.test((value & 0x0F) == 0x0F) | // H
+            (self.regs.f & registers::C); // -
+    }
+
+    fn inc8<I: DecInc+In8>(&mut self, mut in8: I) {
+        in8.inc(self);
+        let value = in8.read(self);
+        self.regs.f =
+            registers::Z.test(value == 0) | // Z
             registers::H.test((value & 0x0F) == 0x0F) | // H
             (self.regs.f & registers::C); // -
     }
