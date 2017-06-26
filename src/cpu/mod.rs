@@ -176,10 +176,12 @@ impl<'a> CPU<'a> {
     }
 
     pub fn step(&mut self) {
+        println!("Regs   : {}", self.regs);
+
         let (opcode, instruction) = Opcode::decode(self);
-        println!("Regs   : {:?}", self.regs);
-        println!("PC     : 0x{0:04x}", self.regs.pc-1);
+
         println!("Opcode : {:?} (0x{:x})", instruction, opcode);
+
         self.decode(instruction);
     }
 

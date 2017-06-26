@@ -1,3 +1,5 @@
+use std::fmt;
+
 bitflags! {
     flags Flags: u8 {
         const Z = 0b1000000,
@@ -29,6 +31,17 @@ pub struct Registers {
     pub f: Flags,
     pub h: u8,
     pub l: u8,
+}
+
+impl fmt::Display for Registers {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "PC:0x{:04x} SP:0x{:04x} \
+               A:0x{:02x} B:0x{:02x} C:0x{:02x} D:0x{:02x} \
+               E:0x{:02x} H:0x{:02x} L:0x{:02x} F:{:?}",
+               self.pc, self.sp,
+               self.a, self.b, self.c, self.d,
+               self.e, self.h, self.l, self.f)
+    }
 }
 
 #[derive(Debug)]
