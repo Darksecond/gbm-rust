@@ -14,6 +14,18 @@ pub enum Cond {
     Always,
 }
 
+impl Cond {
+    fn check(&self, flags: Flags) -> bool {
+        match *self {
+            Cond::Always => true,
+            Cond::Z => flags.contains(registers::Z),
+            Cond::C => flags.contains(registers::C),
+            Cond::NZ => !flags.contains(registers::Z),
+            Cond::NC => !flags.contains(registers::C),
+        }
+    }
+}
+
 pub trait DecInc {
     fn dec(&mut self, cpu: &mut CPU);
     fn inc(&mut self, cpu: &mut CPU);
@@ -192,6 +204,7 @@ impl<'a> CPU<'a> {
             Opcode::Ld16(to, from) => self.load16(from, to),
             Opcode::Ld(to, from) => self.load8(from, to),
             Opcode::Dec(Op8::Register(reg)) => self.dec8(reg),
+            Opcode::Adc(to, from) => self.adc(from, to),
             Opcode::Rra => self.rra(),
             _ => panic!("Unknown opcode ({:?})", opcode),
         }
@@ -260,29 +273,26 @@ impl<'a> CPU<'a> {
     }
 
     fn jr(&mut self, cond: Cond, addr: u8) {
-        let do_jump = match cond {
-            Cond::NZ => (self.regs.f & registers::Z) == Flags::empty(),
-            Cond::NC => (self.regs.f & registers::C) == Flags::empty(),
-            Cond::C => (self.regs.f & registers::C) != Flags::empty(),
-            Cond::Z => (self.regs.f & registers::Z) != Flags::empty(),
-            Cond::Always => true,
-        };
-        if do_jump {
+        if cond.check(self.regs.f) {
             self.regs.pc += addr as u16;
         }
     }
 
     fn jp<I: In16>(&mut self, cond: Cond, addr: I) {
-        let do_jump = match cond {
-            Cond::NZ => (self.regs.f & registers::Z) == Flags::empty(),
-            Cond::NC => (self.regs.f & registers::C) == Flags::empty(),
-            Cond::C => (self.regs.f & registers::C) != Flags::empty(),
-            Cond::Z => (self.regs.f & registers::Z) != Flags::empty(),
-            Cond::Always => true,
-        };
-        if do_jump {
+        if cond.check(self.regs.f) {
             self.regs.pc = addr.read(self);
         }
+    }
+
+    fn adc<I: In8, O: In8+Out8>(&mut self, in8: I, out8: O) {
+        let value = in8.read(self);
+        let original = out8.read(self);
+        let c = if self.regs.f.contains(registers::C) {1} else {0};
+        let result = original.wrapping_add(value).wrapping_add(c);
+        self.regs.f = registers::Z.test(result == 0) |
+            registers::C.test(original as u16 + value as u16 + c as u16 > 0xff) |
+            registers::H.test((original & 0xf) + (value & 0xf) + c > 0xf);
+        out8.write(self, result);
     }
 
     fn dec8<I: DecInc+In8>(&mut self, mut reg: I) {
