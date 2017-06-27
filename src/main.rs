@@ -5,6 +5,7 @@ mod cartridge;
 mod memory;
 mod mmu;
 mod cpu;
+mod gpu;
 
 use cartridge::Cartridge;
 use mmu::MMU;

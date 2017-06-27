@@ -1,5 +1,6 @@
 use cartridge::Cartridge;
 use memory::Ram;
+use gpu::Gpu;
 
 bitflags!(
     pub struct Interrupts: u8 {
@@ -53,6 +54,7 @@ pub struct MMU<'a> {
     cart: &'a Cartridge,
     wram: Ram,
     irq: Irq,
+    gpu: Gpu,
 }
 
 impl<'a> MMU<'a> {
@@ -61,6 +63,7 @@ impl<'a> MMU<'a> {
             cart: &cart,
             wram: Ram::new(8192),
             irq: Irq::new(),
+            gpu: Gpu::new(),
         }
     }
 }
@@ -73,6 +76,7 @@ impl<'a> Bus for MMU<'a> {
             0xC000 ... 0xDFFF => self.wram.read(addr & 0x1FFF),
             0xE000 ... 0xFDFF => self.wram.read(addr & 0x1FFF),
             0xFF0F => self.irq.get_enable(),
+            0xFF43 => self.gpu.read(addr),
             0xFFFF => self.irq.get_request(),
             _ => panic!("Unsupported read")
         }
@@ -83,6 +87,7 @@ impl<'a> Bus for MMU<'a> {
             0xC000 ... 0xDFFF => self.wram.write(addr & 0x1FFF, value),
             0xE000 ... 0xFDFF => self.wram.write(addr & 0x1FFF, value),
             0xFF0F => self.irq.set_enable(value),
+            0xFF43 => self.gpu.write(addr, value),
             0xFFFF => self.irq.set_request(value),
             _ => panic!("Unsupported write 0x{:04x} = 0x{:02x}", addr, value)
         }
