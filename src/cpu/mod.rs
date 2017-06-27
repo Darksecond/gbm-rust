@@ -286,7 +286,7 @@ impl Out8 for Op8 {
             Op8::Immediate(_) => panic!("You cannot write to an immediate"),
             Op8::Memory(Addr::HLD) => {Memory::HL.write(cpu, value); Reg16::HL.dec(cpu); },
             Op8::Memory(Addr::HLI) => {Memory::HL.write(cpu, value); Reg16::HL.inc(cpu); },
-            Op8::Memory(Addr::ZeroPage(addr)) => {cpu.write_u8(0xFF01|(addr as u16), value);},
+            Op8::Memory(Addr::ZeroPage(addr)) => {cpu.write_u8(0xFF00|(addr as u16), value);},
             _ => panic!("Not yet implemented (Op8+Out8) ({:?})", self),
         }
     }
