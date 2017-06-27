@@ -46,6 +46,7 @@ impl Irq {
 pub trait Bus {
     fn read(&self, addr: u16) -> u8;
     fn write(&mut self, addr: u16, value: u8);
+    fn cycle(&mut self);
 }
 
 pub struct MMU<'a> {
@@ -85,5 +86,9 @@ impl<'a> Bus for MMU<'a> {
             0xFFFF => self.irq.set_request(value),
             _ => panic!("Unsupported write 0x{:04x} = 0x{:02x}", addr, value)
         }
+    }
+
+    fn cycle(&mut self) {
+        println!("CYCLE");
     }
 }

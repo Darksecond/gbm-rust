@@ -19,4 +19,6 @@ impl Bus for Ram {
     fn write(&mut self, addr: u16, value: u8) {
         self.ram[addr as usize] = value;
     }
+
+    fn cycle(&mut self) {}
 }

@@ -163,7 +163,7 @@ impl Out8 for Memory {
         let addr = match self {
             HL => Reg16::HL.read(cpu)
         };
-        cpu.mmu.write(addr, value)
+        cpu.write_u8(addr, value)
     }
 }
 
@@ -198,10 +198,31 @@ impl<'a> CPU<'a> {
         self.decode(instruction);
     }
 
+    pub fn write_u8(&mut self, addr: u16, value: u8) {
+        self.mmu.cycle();
+        self.mmu.write(addr, value);
+    }
+
+    pub fn read_u16(&mut self, addr: u16) -> u16 {
+        let l = self.read_u8(addr);
+        let h = self.read_u8(addr+1);
+        ((h as u16) << 8) | (l as u16)
+    }
+
+    pub fn write_u16(&mut self, addr: u16, value: u16) {
+        self.write_u8(addr, value as u8);
+        self.write_u8(addr+1, (value >> 8) as u8);
+    }
+
+    pub fn read_u8(&mut self, addr: u16) -> u8 {
+        self.mmu.cycle();
+        self.mmu.read(addr)
+    }
+
     pub fn next_u8(&mut self) -> u8 {
         let addr = self.regs.pc;
         self.regs.pc += 1;
-        self.mmu.read(addr)
+        self.read_u8(addr)
     }
 
     pub fn next_u16(&mut self) -> u16 {
@@ -265,7 +286,7 @@ impl Out8 for Op8 {
             Op8::Immediate(_) => panic!("You cannot write to an immediate"),
             Op8::Memory(Addr::HLD) => {Memory::HL.write(cpu, value); Reg16::HL.dec(cpu); },
             Op8::Memory(Addr::HLI) => {Memory::HL.write(cpu, value); Reg16::HL.inc(cpu); },
-            Op8::Memory(Addr::ZeroPage(addr)) => {cpu.mmu.write(0xFF01|(addr as u16), value);},
+            Op8::Memory(Addr::ZeroPage(addr)) => {cpu.write_u8(0xFF01|(addr as u16), value);},
             _ => panic!("Not yet implemented (Op8+Out8) ({:?})", self),
         }
     }
