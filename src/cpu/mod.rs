@@ -274,6 +274,7 @@ impl In8 for Op8 {
         match *self {
             Op8::Register(ref r) => r.read(cpu),
             Op8::Immediate(value) => value,
+            Op8::Memory(Addr::ZeroPage(addr)) => cpu.read_u8(0xFF|(addr as u16)),
             _ => panic!("Not yet implemented (Op8+In8) ({:?})", self),
         }
     }
