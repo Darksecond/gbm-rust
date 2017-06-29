@@ -189,7 +189,7 @@ impl<'a> CPU<'a> {
     }
 
     pub fn step(&mut self) {
-        println!("Regs   : {}", self.regs);
+        //println!("Regs   : {}", self.regs);
 
         let (opcode, instruction) = Opcode::decode(self);
 
@@ -244,6 +244,7 @@ impl<'a> CPU<'a> {
             Opcode::Adc(to, from) => self.adc(from, to),
             Opcode::Rra => self.rra(),
             Opcode::Di => self.ime = Ime::Disabled,
+            Opcode::Cp(op) => self.cp(op),
             _ => panic!("Unknown opcode ({:?})", opcode),
         }
     }
@@ -274,7 +275,7 @@ impl In8 for Op8 {
         match *self {
             Op8::Register(ref r) => r.read(cpu),
             Op8::Immediate(value) => value,
-            Op8::Memory(Addr::ZeroPage(addr)) => cpu.read_u8(0xFF|(addr as u16)),
+            Op8::Memory(Addr::ZeroPage(addr)) => cpu.read_u8(0xFF00|(addr as u16)),
             _ => panic!("Not yet implemented (Op8+In8) ({:?})", self),
         }
     }
@@ -309,6 +310,15 @@ impl DecInc for Op8 {
 }
 
 impl<'a> CPU<'a> {
+    fn cp<I: In8>(&mut self, op: I) {
+        let value = op.read(self);
+        let result = self.regs.a.wrapping_sub(value);
+        self.regs.f = registers::Z.test(result == 0) |
+            registers::N |
+            registers::H.test((self.regs.a & 0xf) < (value & 0xf)) |
+            registers::C.test((self.regs.a as u16) < (value as u16));
+    }
+
     fn xor<I: In8>(&mut self, in8: I) {
         let value = in8.read(self);
         self.regs.a = self.regs.a ^ value;
