@@ -1,5 +1,13 @@
 use mmu::Bus;
 
+#[derive(Debug)]
+pub enum Mode {
+    VBlank,
+    HBlank,
+    ReadOam,
+    ReadVram,
+}
+
 bitflags!(
     pub struct Control: u8 {
         const BG_ON        = 0b00000001;
@@ -18,6 +26,8 @@ pub struct Gpu {
     scroll_x: u8,
     current_line: u8,
     control: Control,
+    mode: Mode,
+    cycles: usize,
 }
 
 impl Gpu {
@@ -27,6 +37,8 @@ impl Gpu {
             scroll_x: 0,
             current_line: 0,
             control: Control::empty(),
+            mode: Mode::ReadVram,
+            cycles: 0,
         }
     }
 }
@@ -54,5 +66,42 @@ impl Bus for Gpu {
     }
 
     fn cycle(&mut self) {
+        self.cycles += 1;
+
+        match self.mode {
+            Mode::VBlank => {
+                if(self.cycles >= 114) {
+                    self.cycles -= 114;
+                    self.current_line += 1;
+                    if(self.current_line > 153)  {
+                        self.mode = Mode::ReadOam;
+                        self.current_line = 0;
+                    }
+                }
+            },
+            Mode::HBlank => {
+                if(self.cycles >= 51) {
+                    self.cycles -= 51;
+                    self.current_line += 1;
+                    if(self.current_line == 144) {
+                        self.mode =  Mode::VBlank;
+                    } else {
+                        self.mode = Mode::ReadOam;
+                    }
+                }
+            },
+            Mode::ReadOam => {
+                if(self.cycles >= 20) {
+                    self.cycles -= 20;
+                    self.mode = Mode::ReadVram;
+                }
+            },
+            Mode::ReadVram => {
+                if(self.cycles >= 43) {
+                    self.cycles -= 43;
+                    self.mode = Mode::HBlank;
+                }
+            },
+        }
     }
 }

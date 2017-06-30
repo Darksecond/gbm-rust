@@ -99,6 +99,6 @@ impl<'a> Bus for MMU<'a> {
     }
 
     fn cycle(&mut self) {
-        //println!("CYCLE");
+        self.gpu.cycle();
     }
 }
