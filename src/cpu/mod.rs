@@ -176,11 +176,11 @@ enum Ime {
 pub struct CPU<'a> {
     regs: Registers,
     ime: Ime,
-    mmu: &'a mut MMU<'a>
+    mmu: &'a mut MMU
 }
 
 impl<'a> CPU<'a> {
-    pub fn new(mmu: &'a mut MMU<'a>) -> CPU<'a> {
+    pub fn new(mmu: &'a mut MMU) -> CPU<'a> {
         CPU {
             regs: Registers::new(),
             ime: Ime::Disabled,
@@ -286,9 +286,11 @@ impl Out8 for Op8 {
         match *self {
             Op8::Register(ref r) => r.write(cpu, value),
             Op8::Immediate(_) => panic!("You cannot write to an immediate"),
+            Op8::Memory(Addr::HL) => {Memory::HL.write(cpu, value); },
             Op8::Memory(Addr::HLD) => {Memory::HL.write(cpu, value); Reg16::HL.dec(cpu); },
             Op8::Memory(Addr::HLI) => {Memory::HL.write(cpu, value); Reg16::HL.inc(cpu); },
             Op8::Memory(Addr::ZeroPage(addr)) => {cpu.write_u8(0xFF00|(addr as u16), value);},
+            Op8::Memory(Addr::Immediate(addr)) => {cpu.write_u8(addr, value);},
             _ => panic!("Not yet implemented (Op8+Out8) ({:?})", self),
         }
     }

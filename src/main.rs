@@ -17,8 +17,8 @@ fn main() {
     let filename = env::args().nth(1).expect("Missing argument");
     println!("{}", filename);
     let cart = Cartridge::new(&filename).unwrap();
-    let mut mmu = MMU::new(&cart);
     println!("{}", cart.title());
+    let mut mmu = MMU::new(cart);
 
     // CPU
     let mut cpu = CPU::new(&mut mmu);

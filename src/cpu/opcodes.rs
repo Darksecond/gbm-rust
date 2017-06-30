@@ -292,6 +292,7 @@ impl Opcode {
             0xCF => Opcode::Rst(0x08),
 
             0xE0 => Opcode::Ld(Op8::Memory(Addr::ZeroPage(cpu.next_u8())), Op8::Register(Reg8::A)),
+            0xEA => Opcode::Ld(Op8::Memory(Addr::Immediate(cpu.next_u16())), Op8::Register(Reg8::A)),
 
             0xF0 => Opcode::Ld(Op8::Register(Reg8::A), Op8::Memory(Addr::ZeroPage(cpu.next_u8()))),
             0xF2 => Opcode::Pop(Op16::Register(Reg16::AF)),

@@ -31,7 +31,7 @@ impl Bus for Cartridge {
     }
 
     fn write(&mut self, _: u16, _: u8) {
-        panic!("Write not supported");
+        //panic!("Write not supported");
     }
 
     fn cycle(&mut self) {}
