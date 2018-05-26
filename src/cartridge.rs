@@ -56,6 +56,4 @@ impl Bus for Cartridge {
             MemoryBankController::Mbc1 => panic!("Not yet implemented"),
         }
     }
-
-    fn cycle(&mut self) {}
 }

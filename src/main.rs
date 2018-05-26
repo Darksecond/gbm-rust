@@ -8,6 +8,7 @@ mod mmu;
 mod cpu;
 mod gpu;
 mod timer;
+mod irq;
 
 use cartridge::Cartridge;
 use mmu::MMU;

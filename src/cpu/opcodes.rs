@@ -65,6 +65,7 @@ pub enum Opcode {
     Di,
     Ei,
     Swap(Op8),
+    Res(u8, Op8),
 }
 
 impl Opcode {
@@ -249,7 +250,6 @@ impl Opcode {
             0xA5 => Opcode::And(Op8::Register(Reg8::L)),
             0xA6 => Opcode::And(Op8::Memory(Addr::HL)),
             0xA7 => Opcode::And(Op8::Register(Reg8::A)),
-
             0xA8 => Opcode::Xor(Op8::Register(Reg8::B)),
             0xA9 => Opcode::Xor(Op8::Register(Reg8::C)),
             0xAA => Opcode::Xor(Op8::Register(Reg8::D)),
@@ -293,15 +293,23 @@ impl Opcode {
             0xCE => Opcode::Adc(Op8::Register(Reg8::A), Op8::Immediate(cpu.next_u8())),
             0xCF => Opcode::Rst(0x08),
 
+            0xD1 => Opcode::Pop(Op16::Register(Reg16::DE)),
+            0xD5 => Opcode::Push(Op16::Register(Reg16::DE)),
+
             0xE0 => Opcode::Ld(Op8::Memory(Addr::ZeroPage(cpu.next_u8())), Op8::Register(Reg8::A)),
+            0xE1 => Opcode::Pop(Op16::Register(Reg16::HL)),
             0xE2 => Opcode::Ld(Op8::Memory(Addr::ZeroPageC), Op8::Register(Reg8::A)),
+            0xE5 => Opcode::Push(Op16::Register(Reg16::HL)),
             0xE6 => Opcode::And(Op8::Immediate(cpu.next_u8())),
+            0xE9 => Opcode::Jp(Cond::Always, Op16::Register(Reg16::HL)),
             0xEA => Opcode::Ld(Op8::Memory(Addr::Immediate(cpu.next_u16())), Op8::Register(Reg8::A)),
             0xEF => Opcode::Rst(0x28),
 
             0xF0 => Opcode::Ld(Op8::Register(Reg8::A), Op8::Memory(Addr::ZeroPage(cpu.next_u8()))),
-            0xF2 => Opcode::Pop(Op16::Register(Reg16::AF)),
+            0xF1 => Opcode::Pop(Op16::Register(Reg16::AF)),
             0xF3 => Opcode::Di,
+            0xF5 => Opcode::Push(Op16::Register(Reg16::AF)),
+            0xFA => Opcode::Ld(Op8::Register(Reg8::A), Op8::Memory(Addr::Immediate(cpu.next_u16()))),
             0xFB => Opcode::Ei,
             0xFE => Opcode::Cp(Op8::Immediate(cpu.next_u8())),
 
@@ -315,6 +323,8 @@ impl Opcode {
         let full_opcode = 0xCB00 | opcode as u16;
         let instruction = match opcode {
             0x37 => Opcode::Swap(Op8::Register(Reg8::A)),
+            
+            0x87 => Opcode::Res(0, Op8::Register(Reg8::A)),
             _ => Opcode::Unknown(full_opcode),
         };
         (full_opcode as u16, instruction)

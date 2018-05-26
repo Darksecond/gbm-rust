@@ -1,5 +1,7 @@
 use mmu::Bus;
 use memory::Ram;
+use mmu::InterruptCycle;
+use irq::Irq;
 
 pub enum Color {
     White = 0,
@@ -130,8 +132,14 @@ impl Bus for Gpu {
             _ => panic!("Not yet implemented write 0x{:04x} = 0x{:02x}", addr, value)
         }
     }
+}
 
-    fn cycle(&mut self) {
+impl InterruptCycle for Gpu {
+    fn cycle(&mut self, irq: &mut Irq) {
+        if !self.control.contains(LCD_ON) {
+            return;
+        }
+
         self.cycles += 1;
 
         match self.mode {
@@ -151,6 +159,7 @@ impl Bus for Gpu {
                     self.current_line += 1;
                     if self.current_line == 144 {
                         self.mode =  Mode::VBlank;
+                        irq.request_interrupt(::irq::INT_VBLANK);
                     } else {
                         self.mode = Mode::ReadOam;
                     }

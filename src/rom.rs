@@ -31,6 +31,4 @@ impl Bus for Rom {
     fn write(&mut self, addr: u16, value: u8) {
         panic!("Write not supported: 0x{:x} = 0x{:x}", addr, value);
     }
-
-    fn cycle(&mut self) {}
 }

@@ -28,9 +28,6 @@ impl Timer {
 }
 
 impl Bus for Timer {
-    fn cycle(&mut self) {
-    }
-
     fn write(&mut self, addr: u16, value: u8) {
         match addr {
             0xFF06 => self.set_modulo(value),
