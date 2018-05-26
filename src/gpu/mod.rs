@@ -76,6 +76,8 @@ pub struct Gpu {
     obj1_palette: Palette,
     vram: Ram,
     oam: Ram,
+    window_y: u8,
+    window_x: u8,
 }
 
 impl Gpu {
@@ -92,6 +94,8 @@ impl Gpu {
             obj1_palette: Palette::from_u8(0b11111111),
             vram: Ram::new(8192),
             oam: Ram::new(160),
+            window_y: 0,
+            window_x: 0,
         }
     }
 }
@@ -121,6 +125,8 @@ impl Bus for Gpu {
             0xFF47 => self.bg_palette = Palette::from_u8(value),
             0xFF48 => self.obj0_palette = Palette::from_u8(value),
             0xFF49 => self.obj1_palette = Palette::from_u8(value),
+            0xFF4A => self.window_y = value,
+            0xFF4B => self.window_x = value,
             _ => panic!("Not yet implemented write 0x{:04x} = 0x{:02x}", addr, value)
         }
     }

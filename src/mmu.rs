@@ -1,6 +1,7 @@
 use cartridge::Cartridge;
 use memory::Ram;
 use gpu::Gpu;
+use timer::Timer;
 
 bitflags!(
     pub struct Interrupts: u8 {
@@ -56,6 +57,7 @@ pub struct MMU {
     zram: Ram,
     irq: Irq,
     gpu: Gpu,
+    timer: Timer,
 }
 
 impl MMU {
@@ -66,6 +68,7 @@ impl MMU {
             zram: Ram::new(128),
             irq: Irq::new(),
             gpu: Gpu::new(),
+            timer: Timer::new(),
         }
     }
 }
@@ -79,11 +82,13 @@ impl Bus for MMU {
             0xC000 ... 0xDFFF => self.wram.read(addr & 0x1FFF),
             0xE000 ... 0xFDFF => self.wram.read(addr & 0x1FFF),
             0xFE00 ... 0xFE9F => self.gpu.read(addr),
+            0xFF00 => 0x00, //TODO Joypad
+            0xFF04 ... 0xFF07 => self.timer.read(addr),
             0xFF0F => self.irq.get_enable(),
             0xFF40 ... 0xFF55 => self.gpu.read(addr),
             0xFF80 ... 0xFFFE => self.zram.read(addr & 0x7F),
             0xFFFF => self.irq.get_request(),
-            _ => panic!("Unsupported read")
+            _ => panic!("Unsupported read 0x{:04x}", addr)
         }
     }
 
@@ -96,9 +101,11 @@ impl Bus for MMU {
             0xE000 ... 0xFDFF => self.wram.write(addr & 0x1FFF, value),
             0xFE00 ... 0xFE9F => self.gpu.write(addr, value),
             0xFEA0 ... 0xFEFF => (), //TODO unusable
+            0xFF00 => (), //TODO Joypad
             0xFF01 ... 0xFF02 => (), //TODO serial
+            0xFF04 ... 0xFF07 => self.timer.write(addr, value),
             0xFF0F => self.irq.set_enable(value),
-            0xFF24 ... 0xFF26 => (), //TODO Sound
+            0xFF10 ... 0xFF26 => (), //TODO Sound
             0xFF40 ... 0xFF55 => self.gpu.write(addr, value),
             0xFF7F => (), //TODO unknown
             0xFF80 ... 0xFFFE => self.zram.write(addr & 0x7F, value),

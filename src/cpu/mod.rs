@@ -154,16 +154,39 @@ impl In8 for Immediate {
     }
 }
 
+#[derive(Copy, Clone)]
 pub enum Memory {
-    HL
+    HL,
+    HLI,
+    HLD,
 }
 
 impl Out8 for Memory {
     fn write(&self, cpu: &mut CPU, value: u8) {
         let addr = match self {
-            HL => Reg16::HL.read(cpu)
+            &Memory::HL | &Memory::HLI | &Memory::HLD => Reg16::HL.read(cpu),
         };
-        cpu.write_u8(addr, value)
+        cpu.write_u8(addr, value);
+        match self {
+            &Memory::HL => (),
+            &Memory::HLI => Reg16::HL.inc(cpu),
+            &Memory::HLD => Reg16::HL.dec(cpu),
+        };
+    }
+}
+
+impl In8 for Memory {
+    fn read(&self, cpu: &mut CPU) -> u8 {
+        let addr = match self {
+            &Memory::HL | &Memory::HLI | &Memory::HLD => Reg16::HL.read(cpu),
+        };
+        let value = cpu.read_u8(addr);
+        match self {
+            &Memory::HL => (),
+            &Memory::HLI => Reg16::HL.inc(cpu),
+            &Memory::HLD => Reg16::HL.dec(cpu),
+        };
+        value
     }
 }
 
@@ -173,6 +196,7 @@ enum Ime {
     Enabling,
 }
 
+//TODO Use Bus instead of MMU
 pub struct CPU<'a> {
     regs: Registers,
     ime: Ime,
@@ -191,9 +215,14 @@ impl<'a> CPU<'a> {
     pub fn step(&mut self) {
         //println!("Regs   : {}", self.regs);
 
+        let pc = self.regs.pc;
         let (opcode, instruction) = Opcode::decode(self);
+        println!("[0x{:04x}] 0x{:02x} ({:?})", pc, opcode, instruction);
 
-        println!("Opcode : {:?} (0x{:x})", instruction, opcode);
+        match self.ime {
+            Ime::Enabling => self.ime = Ime::Enabled,
+            _ => (),
+        }
 
         self.decode(instruction);
     }
@@ -231,21 +260,55 @@ impl<'a> CPU<'a> {
         ((h as u16) << 8) | (l as u16)
     }
 
+    fn push_u8(&mut self, value: u8) {
+        Reg16::SP.dec(self);
+        let sp = Reg16::SP.read(self);
+        self.write_u8(sp, value)
+    }
+
+    fn push_u16(&mut self, value: u16) {
+        self.push_u8((value >> 8) as u8);
+        self.push_u8(value as u8);
+    }
+
+    fn pop_u8(&mut self) -> u8 {
+        let sp = Reg16::SP.read(self);
+        let value = self.read_u8(sp);
+        Reg16::SP.inc(self);
+        value
+    }
+
+    fn pop_u16(&mut self) -> u16 {
+        let l = self.pop_u8();
+        let h = self.pop_u8();
+        ((h as u16) << 8) | (l as u16)
+    }
+
     fn decode(&mut self, opcode: Opcode) {
         match opcode {
             Opcode::Nop => (),
             Opcode::Jr(cond, addr) => self.jr(cond, addr),
             Opcode::Jp(cond, to) => self.jp(cond, to),
             Opcode::Xor(Op8::Register(reg)) => self.xor(reg),
-            Opcode::Ld16(to, from) => self.load16(from, to),
+            Opcode::Ld16(to, from) => self.load16(from, to), //Ld16(SP,HL) needs an internal cycle ?!?
             Opcode::Ld(to, from) => self.load8(from, to),
             Opcode::Dec(Op8::Register(reg)) => self.dec8(reg),
+            Opcode::Dec16(Op16::Register(reg)) => self.dec16(reg),
             Opcode::Inc(reg) => self.inc8(reg),
             Opcode::Adc(to, from) => self.adc(from, to),
             Opcode::Rra => self.rra(),
             Opcode::Di => self.ime = Ime::Disabled,
             Opcode::Cp(op) => self.cp(op),
-            _ => panic!("Unknown opcode ({:?})", opcode),
+            Opcode::Call(Cond::Always, addr) => self.call(addr),
+            Opcode::Ret(Cond::Always) => self.ret(),
+            Opcode::Or(Op8::Register(reg)) => self.or(reg),
+            Opcode::Ei => self.ime = Ime::Enabling,
+            Opcode::Cpl => self.cpl(),
+            Opcode::And(from) => self.and(from),
+            Opcode::Swap(op) => self.swap(op),
+            Opcode::Rst(addr) => self.rst(addr),
+            Opcode::Unknown(opcode) => panic!("Unknown opcode 0x{:04X}", opcode),
+            _ => panic!("Unhandled opcode ({:?})", opcode),
         }
     }
 }
@@ -276,6 +339,7 @@ impl In8 for Op8 {
             Op8::Register(ref r) => r.read(cpu),
             Op8::Immediate(value) => value,
             Op8::Memory(Addr::ZeroPage(addr)) => cpu.read_u8(0xFF00|(addr as u16)),
+            Op8::Memory(Addr::HLI) => Memory::HLI.read(cpu),
             _ => panic!("Not yet implemented (Op8+In8) ({:?})", self),
         }
     }
@@ -286,11 +350,13 @@ impl Out8 for Op8 {
         match *self {
             Op8::Register(ref r) => r.write(cpu, value),
             Op8::Immediate(_) => panic!("You cannot write to an immediate"),
-            Op8::Memory(Addr::HL) => {Memory::HL.write(cpu, value); },
-            Op8::Memory(Addr::HLD) => {Memory::HL.write(cpu, value); Reg16::HL.dec(cpu); },
-            Op8::Memory(Addr::HLI) => {Memory::HL.write(cpu, value); Reg16::HL.inc(cpu); },
+            Op8::Memory(Addr::HL) => Memory::HL.write(cpu, value),
+            Op8::Memory(Addr::HLD) => Memory::HLD.write(cpu, value),
+            Op8::Memory(Addr::HLI) => Memory::HLI.write(cpu, value),
             Op8::Memory(Addr::ZeroPage(addr)) => {cpu.write_u8(0xFF00|(addr as u16), value);},
+            Op8::Memory(Addr::ZeroPageC) => { let c = Reg8::C.read(cpu) as u16; cpu.write_u8(0xFF|c, value)},
             Op8::Memory(Addr::Immediate(addr)) => {cpu.write_u8(addr, value);},
+            Op8::Memory(Addr::DE) => {let addr = Reg16::DE.read(cpu); cpu.write_u8(addr, value); },
             _ => panic!("Not yet implemented (Op8+Out8) ({:?})", self),
         }
     }
@@ -312,6 +378,39 @@ impl DecInc for Op8 {
 }
 
 impl<'a> CPU<'a> {
+    fn rst(&mut self, addr: u8) {
+        let pc = Reg16::PC.read(self);
+        self.mmu.cycle();
+        self.push_u16(pc);
+        Reg16::PC.write(self, addr as u16);
+    }
+
+    fn swap<IO: In8+Out8>(&mut self, op: IO) {
+        let value = op.read(self);
+        let value = (value >> 4) | (value << 4);
+        self.regs.f = registers::Z.test(value == 0); // (Z 0 0 0)
+        op.write(self, value);
+    }
+
+    fn dec16<R: DecInc+In16>(&mut self, mut reg: R) {
+        reg.dec(self);
+        self.mmu.cycle();
+    }
+
+    fn ret(&mut self) {
+        let pc = self.pop_u16();
+        Reg16::PC.write(self, pc);
+        self.mmu.cycle();
+    }
+
+    fn call<I: In16>(&mut self, addr: I) {
+        let value = addr.read(self);
+        let pc = Reg16::PC.read(self);
+        self.mmu.cycle();
+        self.push_u16(pc);
+        Reg16::PC.write(self, value);
+    }
+
     fn cp<I: In8>(&mut self, op: I) {
         let value = op.read(self);
         let result = self.regs.a.wrapping_sub(value);
@@ -319,6 +418,19 @@ impl<'a> CPU<'a> {
             registers::N |
             registers::H.test((self.regs.a & 0xf) < (value & 0xf)) |
             registers::C.test((self.regs.a as u16) < (value as u16));
+    }
+
+    fn and<I: In8>(&mut self, in8: I) {
+        let value = in8.read(self);
+        self.regs.a = self.regs.a & value;
+        self.regs.f = registers::Z.test(self.regs.a == 0) | 
+            registers::H; // (Z 0 1 0)
+    }
+
+    fn or<I: In8>(&mut self, in8: I) {
+        let value = in8.read(self);
+        self.regs.a = self.regs.a | value;
+        self.regs.f = registers::Z.test(self.regs.a == 0); // (Z 0 0 0)
     }
 
     fn xor<I: In8>(&mut self, in8: I) {
@@ -349,6 +461,14 @@ impl<'a> CPU<'a> {
         if cond.check(self.regs.f) {
             self.regs.pc = addr.read(self);
         }
+    }
+
+    fn cpl(&mut self) {
+        self.regs.a = !self.regs.a;
+        self.regs.f = (self.regs.f & registers::Z) | // -
+            registers::N | // 1
+            registers::H | // 1
+            (self.regs.f & registers::C); // -
     }
 
     fn adc<I: In8, O: In8+Out8>(&mut self, in8: I, out8: O) {

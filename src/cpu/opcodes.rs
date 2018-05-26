@@ -1,5 +1,5 @@
 
-use cpu::{DecInc,In8,In16,Out8,Out16, Cond};
+use cpu::{Cond};
 use cpu::CPU;
 use cpu::registers::{Reg8, Reg16};
 
@@ -15,6 +15,7 @@ pub enum Addr {
     HL, HLD, HLI,
     BC, DE,
     ZeroPage(u8),
+    ZeroPageC,
     Immediate(u16),
 }
 
@@ -27,7 +28,7 @@ pub enum Op16 {
 
 #[derive(Debug)]
 pub enum Opcode {
-    Unknown(u8),
+    Unknown(u16),
     Nop,
     Dec(Op8),
     Dec16(Op16),
@@ -63,10 +64,11 @@ pub enum Opcode {
     Rst(u8),
     Di,
     Ei,
+    Swap(Op8),
 }
 
 impl Opcode {
-    pub fn decode(cpu: &mut CPU) -> (u8, Opcode) {
+    pub fn decode(cpu: &mut CPU) -> (u16, Opcode) {
         let opcode = cpu.next_u8();
         let instruction = match opcode {
             0x00 => Opcode::Nop,
@@ -285,23 +287,36 @@ impl Opcode {
             0xC8 => Opcode::Ret(Cond::Z),
             0xC9 => Opcode::Ret(Cond::Always),
             0xCA => Opcode::Jp(Cond::Z, Op16::Immediate(cpu.next_u16())),
-                0xCB => panic!("Prefix CB Not Yet implemented!"), //TODO
+            0xCB => return Opcode::decode_cb(cpu),
             0xCC => Opcode::Call(Cond::Z, Op16::Immediate(cpu.next_u16())),
             0xCD => Opcode::Call(Cond::Always, Op16::Immediate(cpu.next_u16())),
             0xCE => Opcode::Adc(Op8::Register(Reg8::A), Op8::Immediate(cpu.next_u8())),
             0xCF => Opcode::Rst(0x08),
 
             0xE0 => Opcode::Ld(Op8::Memory(Addr::ZeroPage(cpu.next_u8())), Op8::Register(Reg8::A)),
+            0xE2 => Opcode::Ld(Op8::Memory(Addr::ZeroPageC), Op8::Register(Reg8::A)),
+            0xE6 => Opcode::And(Op8::Immediate(cpu.next_u8())),
             0xEA => Opcode::Ld(Op8::Memory(Addr::Immediate(cpu.next_u16())), Op8::Register(Reg8::A)),
+            0xEF => Opcode::Rst(0x28),
 
             0xF0 => Opcode::Ld(Op8::Register(Reg8::A), Op8::Memory(Addr::ZeroPage(cpu.next_u8()))),
             0xF2 => Opcode::Pop(Op16::Register(Reg16::AF)),
             0xF3 => Opcode::Di,
-            0xF8 => Opcode::Ei,
+            0xFB => Opcode::Ei,
             0xFE => Opcode::Cp(Op8::Immediate(cpu.next_u8())),
 
-            _ => Opcode::Unknown(opcode),
+            _ => Opcode::Unknown(opcode as u16),
         };
-        (opcode, instruction)
+        (opcode as u16, instruction)
+    }
+
+    fn decode_cb(cpu: &mut CPU) -> (u16, Opcode) {
+        let opcode = cpu.next_u8();
+        let full_opcode = 0xCB00 | opcode as u16;
+        let instruction = match opcode {
+            0x37 => Opcode::Swap(Op8::Register(Reg8::A)),
+            _ => Opcode::Unknown(full_opcode),
+        };
+        (full_opcode as u16, instruction)
     }
 }
