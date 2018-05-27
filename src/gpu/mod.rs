@@ -1,7 +1,7 @@
 use mmu::Bus;
 use memory::Ram;
 use mmu::InterruptCycle;
-use irq::Irq;
+use irq::{Irq, Interrupt};
 
 pub enum Color {
     White = 0,
@@ -124,6 +124,7 @@ impl Bus for Gpu {
             0xFF42 => self.scroll_y = value,
             0xFF43 => self.scroll_x = value,
             0xFF44 => self.current_line = 0,
+            0xFF46 => (), //TODO DMA
             0xFF47 => self.bg_palette = Palette::from_u8(value),
             0xFF48 => self.obj0_palette = Palette::from_u8(value),
             0xFF49 => self.obj1_palette = Palette::from_u8(value),
@@ -159,7 +160,7 @@ impl InterruptCycle for Gpu {
                     self.current_line += 1;
                     if self.current_line == 144 {
                         self.mode =  Mode::VBlank;
-                        irq.request_interrupt(::irq::INT_VBLANK);
+                        irq.request_interrupt(Interrupt::VBlank);
                     } else {
                         self.mode = Mode::ReadOam;
                     }

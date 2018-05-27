@@ -2,7 +2,7 @@ mod registers;
 mod opcodes;
 
 use self::opcodes::{Opcode, Op8, Op16, Addr};
-use mmu::{MMU, Bus, Cycle};
+use mmu::{MMU, Bus, Master};
 use cpu::registers::{Registers, Reg8, Reg16, Flags};
 
 #[derive(Debug)]
@@ -199,7 +199,8 @@ enum Ime {
     Enabling,
 }
 
-//TODO Use Bus instead of MMU
+//TODO Use Bus+Master instead of MMU
+//TODO Don't save a reference
 pub struct CPU<'a> {
     regs: Registers,
     ime: Ime,
@@ -216,18 +217,44 @@ impl<'a> CPU<'a> {
     }
 
     pub fn step(&mut self) {
-        //println!("Regs   : {}", self.regs);
-
         let pc = self.regs.pc;
-        let (opcode, instruction) = Opcode::decode(self);
-        //println!("[0x{:04x}] 0x{:02x} ({:?})", pc, opcode, instruction);
-
+        //println!("Regs   : {}", self.regs);
+        let opcode = self.read_u8(pc);
+        let interrupt = match self.ime {
+            Ime::Disabled | Ime::Enabling => false,
+            Ime::Enabled => self.mmu.has_interrupt()
+        };
         match self.ime {
             Ime::Enabling => self.ime = Ime::Enabled,
             _ => (),
         }
+        
+        if interrupt {
+            //println!("INTERRUPT");
+            self.dispatch_interrupt();
+        } else {
+            self.regs.pc += 1;
+            let (opcode, instruction) = Opcode::decode(self, opcode);
+            //if pc >= 0x0293 && pc <= 0x029e {
+            //    println!("Regs   : {}", self.regs);
+            //    println!("[0x{:04x}] 0x{:02x} ({:?})", pc, opcode, instruction);
+            //}
+            self.decode(instruction);
+        }
+    }
 
-        self.decode(instruction);
+    fn dispatch_interrupt(&mut self) {
+        //self.halt = false;
+        self.ime = Ime::Disabled;
+        self.mmu.cycle();
+        self.mmu.cycle();
+        let pc = self.regs.pc;
+        self.push_u16(pc);
+        if let Some(interrupt) = self.mmu.ack_interrupt() {
+            self.regs.pc = interrupt.addr();
+        } else {
+            self.regs.pc = 0x0000;
+        }
     }
 
     pub fn write_u8(&mut self, addr: u16, value: u8) {
@@ -318,6 +345,7 @@ impl<'a> CPU<'a> {
             Opcode::Pop(Op16::Register(reg)) => self.pop(reg),
             Opcode::Push(Op16::Register(reg)) => self.push(reg),
             Opcode::Res(bit, op) => self.res(bit, op),
+            Opcode::Scf => self.scf(),
             _ => panic!("Unhandled opcode ({:?})", opcode),
         }
     }
@@ -367,7 +395,7 @@ impl Out8 for Op8 {
             Op8::Memory(Addr::HLD) => Memory::HLD.write(cpu, value),
             Op8::Memory(Addr::HLI) => Memory::HLI.write(cpu, value),
             Op8::Memory(Addr::ZeroPage(addr)) => {cpu.write_u8(0xFF00|(addr as u16), value);},
-            Op8::Memory(Addr::ZeroPageC) => { let c = Reg8::C.read(cpu) as u16; cpu.write_u8(0xFF|c, value)},
+            Op8::Memory(Addr::ZeroPageC) => { let c = Reg8::C.read(cpu) as u16; cpu.write_u8(0xFF00|c, value)},
             Op8::Memory(Addr::Immediate(addr)) => {cpu.write_u8(addr, value);},
             Op8::Memory(Addr::DE) => {let addr = Reg16::DE.read(cpu); cpu.write_u8(addr, value); },
             _ => panic!("Not yet implemented (Op8+Out8) ({:?})", self),
@@ -389,12 +417,20 @@ impl DecInc for Op8 {
     fn inc(&mut self, cpu: &mut CPU) {
         match *self {
             Op8::Register(ref mut r) => r.inc(cpu),
+            Op8::Memory(Addr::HL) => {
+                let value = Memory::HL.read(cpu).wrapping_add(1);
+                Memory::HL.write(cpu, value);
+            },
             _ => panic!("Not yet implemented (Op8+DecInc+inc) ({:?})", self),
         }
     }
 }
 
 impl<'a> CPU<'a> {
+    fn scf(&mut self) {
+        self.regs.f = (self.regs.f & registers::Z) | registers::C;
+    }
+
     fn res<IO: In8+Out8>(&mut self, bit: u8, io8: IO) {
         let value = io8.read(self);
         let mask = !(1 << bit);

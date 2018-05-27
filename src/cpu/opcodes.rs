@@ -66,11 +66,12 @@ pub enum Opcode {
     Ei,
     Swap(Op8),
     Res(u8, Op8),
+    Reti,
 }
 
 impl Opcode {
-    pub fn decode(cpu: &mut CPU) -> (u16, Opcode) {
-        let opcode = cpu.next_u8();
+    pub fn decode(cpu: &mut CPU, opcode: u8) -> (u16, Opcode) {
+        //let opcode = cpu.next_u8();
         let instruction = match opcode {
             0x00 => Opcode::Nop,
             0x01 => Opcode::Ld16(Op16::Register(Reg16::BC), Op16::Immediate(cpu.next_u16())),
@@ -295,6 +296,7 @@ impl Opcode {
 
             0xD1 => Opcode::Pop(Op16::Register(Reg16::DE)),
             0xD5 => Opcode::Push(Op16::Register(Reg16::DE)),
+            0xD9 => Opcode::Reti,
 
             0xE0 => Opcode::Ld(Op8::Memory(Addr::ZeroPage(cpu.next_u8())), Op8::Register(Reg8::A)),
             0xE1 => Opcode::Pop(Op16::Register(Reg16::HL)),

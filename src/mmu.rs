@@ -2,18 +2,18 @@ use cartridge::Cartridge;
 use memory::Ram;
 use gpu::Gpu;
 use timer::Timer;
-use irq::Irq;
+use irq::{Irq, Interrupt};
 
 pub trait Bus {
     fn read(&self, addr: u16) -> u8;
     fn write(&mut self, addr: u16, value: u8);
 }
-pub trait Cycle { // Rename to BusMaster or something
+pub trait Master { // Rename to Master
     fn cycle(&mut self);
-    //fn has_interrupt(&mut self) -> bool;
-    //fn ack_interrupt(&mut self) -> Option<::irq::Interrupts>;
+    fn has_interrupt(&mut self) -> bool;
+    fn ack_interrupt(&mut self) -> Option<Interrupt>;
 }
-pub trait InterruptCycle { //TODO Rename to Device or Slave or BusSlave or something
+pub trait InterruptCycle { //TODO Rename to Slave
     fn cycle(&mut self, irq: &mut Irq);
 }
 
@@ -81,8 +81,16 @@ impl Bus for MMU {
     }
 }
 
-impl Cycle for MMU {
+impl Master for MMU {
     fn cycle(&mut self) {
         self.gpu.cycle(&mut self.irq);
+    }
+
+    fn has_interrupt(&mut self) -> bool {
+        self.irq.has_interrupt()
+    }
+
+    fn ack_interrupt(&mut self) -> Option<Interrupt> {
+        self.irq.ack_interrupt()
     }
 }
